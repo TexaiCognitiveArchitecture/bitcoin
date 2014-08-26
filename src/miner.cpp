@@ -586,7 +586,6 @@ void static BitcoinMiner(CWallet *pwallet)
 
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
                     CheckWork(pblock, *pwallet, reservekey);
-                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
                     // In regression test mode, stop mining after a block is found. This
                     // allows developers to controllably generate a block on demand.
@@ -598,6 +597,7 @@ void static BitcoinMiner(CWallet *pwallet)
                     if (NoProofOfWorkAfterBlock(pindexPrev))
                         throw boost::thread_interrupted();
 
+                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
                     break;
                 }
             }
