@@ -550,6 +550,8 @@ bool AppInit2(boost::thread_group& threadGroup)
     const char* pszP2SH = "/P2SH/";
     COINBASE_FLAGS << std::vector<unsigned char>(pszP2SH, pszP2SH+strlen(pszP2SH));
 
+    nNoProofOfWorkAfterBlock = GetArg("-nopowafter", 0);
+
     // Fee-per-kilobyte amount considered the same as "free"
     // If you are mining, be careful setting this:
     // if you set it to zero then

@@ -16,6 +16,8 @@
 // BitcoinMiner
 //
 
+int64_t nNoProofOfWorkAfterBlock = 0;
+
 int static FormatHashBlocks(void* pbuffer, unsigned int len)
 {
     unsigned char* pdata = (unsigned char*)pbuffer;
@@ -498,11 +500,20 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
+bool static NoProofOfWorkAfterBlock(CBlockIndex* pindexPrev) {
+  if (nNoProofOfWorkAfterBlock == 0) {
+      return false;
+  }
+  return (pindexPrev->nHeight+1) > nNoProofOfWorkAfterBlock;
+}
+
 void static BitcoinMiner(CWallet *pwallet)
 {
     LogPrintf("BitcoinMiner started\n");
-    SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("bitcoin-miner");
+    if (!NoProofOfWorkAfterBlock(chainActive.Tip())) {
+        SetThreadPriority(THREAD_PRIORITY_LOWEST);
+        RenameThread("bitcoin-miner");
+    }
 
     // Each thread has its own key and counter
     CReserveKey reservekey(pwallet);
@@ -582,6 +593,11 @@ void static BitcoinMiner(CWallet *pwallet)
                     if (Params().NetworkID() == CChainParams::REGTEST)
                         throw boost::thread_interrupted();
 
+                    // In no-proof-of-work mode, provided that the current block height is above the threshold,
+                    // stop mining on this first solution.
+                    if (NoProofOfWorkAfterBlock(pindexPrev))
+                        throw boost::thread_interrupted();
+
                     break;
                 }
             }
@@ -649,7 +665,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet, int nThreads)
     static boost::thread_group* minerThreads = NULL;
 
     if (nThreads < 0) {
-        if (Params().NetworkID() == CChainParams::REGTEST)
+        if (Params().NetworkID() == CChainParams::REGTEST || nNoProofOfWorkAfterBlock > 0)
             nThreads = 1;
         else
             nThreads = boost::thread::hardware_concurrency();
