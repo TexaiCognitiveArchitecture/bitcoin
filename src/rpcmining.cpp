@@ -201,6 +201,11 @@ Value setgenerate(const Array& params, bool fHelp)
             }
         }
     }
+    // when in no-proof-of-work mode, don't return until 1 block is generated.
+    else if (nNoProofOfWorkAfterBlock > chainActive.Height()) {
+      LogPrintf("generating a block\n");
+      GenerateBitcoins(fGenerate, pwalletMain, 1);
+    }
     else // Not -regtest: start generate thread, return immediately
     {
         mapArgs["-gen"] = (fGenerate ? "1" : "0");
