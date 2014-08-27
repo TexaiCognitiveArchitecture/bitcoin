@@ -16,7 +16,7 @@
 // BitcoinMiner
 //
 
-int64_t nNoProofOfWorkAfterBlock = 0;
+int nNoProofOfWorkAfterBlock = 0;
 
 int static FormatHashBlocks(void* pbuffer, unsigned int len)
 {
@@ -501,6 +501,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 }
 
 bool static NoProofOfWorkAfterBlock(CBlockIndex* pindexPrev) {
+  LogPrintf("BitcoinMiner - next block is %u\n", (unsigned int) (pindexPrev->nHeight+1));
   if (nNoProofOfWorkAfterBlock == 0) {
       return false;
   }
@@ -510,6 +511,7 @@ bool static NoProofOfWorkAfterBlock(CBlockIndex* pindexPrev) {
 void static BitcoinMiner(CWallet *pwallet)
 {
     LogPrintf("BitcoinMiner started\n");
+    LogPrintf("BitcoinMiner - no proof-of-work after block %u\n", (unsigned int) nNoProofOfWorkAfterBlock);
     if (!NoProofOfWorkAfterBlock(chainActive.Tip())) {
         SetThreadPriority(THREAD_PRIORITY_LOWEST);
         RenameThread("bitcoin-miner");
@@ -571,16 +573,19 @@ void static BitcoinMiner(CWallet *pwallet)
             // Crypto++ SHA256
             nNonceFound = ScanHash_CryptoPP(pmidstate, pdata + 64, phash1,
                                             (char*)&hash, nHashesDone);
+            LogPrintf("BitcoinMiner - nNonceFound %u\n", nNonceFound);
 
             // Check if something found
             if (nNonceFound != (unsigned int) -1)
             {
+                LogPrintf("BitcoinMiner - found something\n");
                 for (unsigned int i = 0; i < sizeof(hash)/4; i++)
                     ((unsigned int*)&hash)[i] = ByteReverse(((unsigned int*)&hash)[i]);
 
-                if (hash <= hashTarget)
+                if (hash <= hashTarget || NoProofOfWorkAfterBlock(pindexPrev))
                 {
                     // Found a solution
+                    LogPrintf("BitcoinMiner - found a solution\n");
                     pblock->nNonce = ByteReverse(nNonceFound);
                     assert(hash == pblock->GetHash());
 
@@ -594,8 +599,10 @@ void static BitcoinMiner(CWallet *pwallet)
 
                     // In no-proof-of-work mode, provided that the current block height is above the threshold,
                     // stop mining on this first solution.
-                    if (NoProofOfWorkAfterBlock(pindexPrev))
+                    if (NoProofOfWorkAfterBlock(pindexPrev)) {
+                        LogPrintf("BitcoinMiner - stop mining on this first solution\n");
                         throw boost::thread_interrupted();
+                    }
 
                     SetThreadPriority(THREAD_PRIORITY_LOWEST);
                     break;
@@ -665,8 +672,10 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet, int nThreads)
     static boost::thread_group* minerThreads = NULL;
 
     if (nThreads < 0) {
-        if (Params().NetworkID() == CChainParams::REGTEST || nNoProofOfWorkAfterBlock > 0)
+        if (Params().NetworkID() == CChainParams::REGTEST || nNoProofOfWorkAfterBlock > 0) {
+            LogPrintf("GenerateBitcoins - setting nThreads to 1\n");
             nThreads = 1;
+        }
         else
             nThreads = boost::thread::hardware_concurrency();
     }

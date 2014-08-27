@@ -31,6 +31,6 @@ void SHA256Transform(void* pstate, void* pinput, const void* pinit);
 
 extern double dHashesPerSec;
 extern int64_t nHPSTimerStart;
-extern int64_t nNoProofOfWorkAfterBlock;
+extern int nNoProofOfWorkAfterBlock;
 
 #endif // BITCOIN_MINER_H
