@@ -72,6 +72,10 @@ CScript COINBASE_FLAGS;
 
 const string strMessageMagic = "Bitcoin Signed Message:\n";
 
+/** if non-zero, then after the given blockchain height, a highest target allows the first hash to solve the block */
+int nNoProofOfWorkAfterHeight = 0;
+
+
 // Internal stuff
 namespace {
     struct CBlockIndexWorkComparator
@@ -1233,6 +1237,11 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
 
+    // handle no proof-of-work after a certain block by returning a hash target that any hash can meet
+    if (nNoProofOfWorkAfterHeight > 0 && pindexLast->nHeight > nNoProofOfWorkAfterHeight) {
+       return 0x20ffffff;
+    }
+
     // Only change once per interval
     if ((pindexLast->nHeight+1) % nInterval != 0)
     {
@@ -1289,6 +1298,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {
+    // if trivial proof-of-work is specified, then bypass this check because we do not know the height of the block here
+    if (nNoProofOfWorkAfterHeight > 0)
+        return true;
+
     CBigNum bnTarget;
     bnTarget.SetCompact(nBits);
 
@@ -1970,7 +1983,7 @@ bool static DisconnectTip(CValidationState &state) {
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         // ignore validation errors in resurrected transactions
         list<CTransaction> removed;
-        CValidationState stateDummy; 
+        CValidationState stateDummy;
         if (!tx.IsCoinBase())
             if (!AcceptToMemoryPool(mempool, stateDummy, tx, false, NULL))
                 mempool.remove(tx, removed, true);
@@ -4345,8 +4358,8 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         // in flight for over two minutes, since we first had a chance to
         // process an incoming block.
         int64_t nNow = GetTimeMicros();
-        if (!pto->fDisconnect && state.nBlocksInFlight && 
-            state.nLastBlockReceive < state.nLastBlockProcess - BLOCK_DOWNLOAD_TIMEOUT*1000000 && 
+        if (!pto->fDisconnect && state.nBlocksInFlight &&
+            state.nLastBlockReceive < state.nLastBlockProcess - BLOCK_DOWNLOAD_TIMEOUT*1000000 &&
             state.vBlocksInFlight.front().nTime < state.nLastBlockProcess - 2*BLOCK_DOWNLOAD_TIMEOUT*1000000) {
             LogPrintf("Peer %s is stalling block download, disconnecting\n", state.name.c_str());
             pto->fDisconnect = true;

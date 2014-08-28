@@ -16,8 +16,6 @@
 // BitcoinMiner
 //
 
-int nNoProofOfWorkAfterBlock = 0;
-
 int static FormatHashBlocks(void* pbuffer, unsigned int len)
 {
     unsigned char* pdata = (unsigned char*)pbuffer;
@@ -108,6 +106,7 @@ public:
 
 CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    LogPrintf("Entering CreateNewBlock()");
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
@@ -455,8 +454,10 @@ unsigned int static ScanHash_CryptoPP(char* pmidstate, char* pdata, char* phash1
 CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey)
 {
     CPubKey pubkey;
-    if (!reservekey.GetReservedKey(pubkey))
+    if (!reservekey.GetReservedKey(pubkey)) {
+        LogPrintf("no reserved key");
         return NULL;
+    }
 
     CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
     return CreateNewBlock(scriptPubKey);
@@ -467,8 +468,10 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     uint256 hash = pblock->GetHash();
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
-    if (hash > hashTarget)
+    if (hash > hashTarget) {
+        LogPrintf("CheckWork - hash > hashTarget\n");
         return false;
+    }
 
     //// debug print
     LogPrintf("BitcoinMiner:\n");
@@ -500,18 +503,18 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
-bool static NoProofOfWorkAfterBlock(CBlockIndex* pindexPrev) {
+bool NoProofOfWorkAfterBlock(CBlockIndex* pindexPrev) {
   LogPrintf("BitcoinMiner - next block is %u\n", (unsigned int) (pindexPrev->nHeight+1));
-  if (nNoProofOfWorkAfterBlock == 0) {
+  if (nNoProofOfWorkAfterHeight == 0) {
       return false;
   }
-  return (pindexPrev->nHeight+1) > nNoProofOfWorkAfterBlock;
+  return (pindexPrev->nHeight+1) > nNoProofOfWorkAfterHeight;
 }
 
 void static BitcoinMiner(CWallet *pwallet)
 {
     LogPrintf("BitcoinMiner started\n");
-    LogPrintf("BitcoinMiner - no proof-of-work after block %u\n", (unsigned int) nNoProofOfWorkAfterBlock);
+    LogPrintf("BitcoinMiner - no proof-of-work after block %u\n", (unsigned int) nNoProofOfWorkAfterHeight);
     if (!NoProofOfWorkAfterBlock(chainActive.Tip())) {
         SetThreadPriority(THREAD_PRIORITY_LOWEST);
         RenameThread("bitcoin-miner");
@@ -563,6 +566,10 @@ void static BitcoinMiner(CWallet *pwallet)
         //
         int64_t nStart = GetTime();
         uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        LogPrintf("hashTarget %s\n", hashTarget.ToString());
+        if (NoProofOfWorkAfterBlock(pindexPrev)) {
+
+        }
         uint256 hashbuf[2];
         uint256& hash = *alignup<16>(hashbuf);
         while (true)
@@ -672,7 +679,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet, int nThreads)
     static boost::thread_group* minerThreads = NULL;
 
     if (nThreads < 0) {
-        if (Params().NetworkID() == CChainParams::REGTEST || nNoProofOfWorkAfterBlock > 0) {
+        if (Params().NetworkID() == CChainParams::REGTEST || nNoProofOfWorkAfterHeight > 0) {
             LogPrintf("GenerateBitcoins - setting nThreads to 1\n");
             nThreads = 1;
         }
@@ -687,8 +694,10 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet, int nThreads)
         minerThreads = NULL;
     }
 
-    if (nThreads == 0 || !fGenerate)
+    if (nThreads == 0 || !fGenerate) {
+        LogPrintf("GenerateBitcoins - not generating now\n");
         return;
+    }
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)

@@ -173,7 +173,7 @@ Value setgenerate(const Array& params, bool fHelp)
             fGenerate = false;
     }
     LogPrintf("setgenerate...\n");
-    LogPrintf("  no proof-of-work after block %u\n", (unsigned int) nNoProofOfWorkAfterBlock);
+    LogPrintf("  no proof-of-work after block %u\n", (unsigned int) nNoProofOfWorkAfterHeight);
     LogPrintf("  chainActive.Height() %u\n", (unsigned int) chainActive.Height());
 
     // -regtest mode: don't return until nGenProcLimit blocks are generated
@@ -205,7 +205,7 @@ Value setgenerate(const Array& params, bool fHelp)
         }
     }
     // when in no-proof-of-work mode, don't return until 1 block is generated.
-    else if (chainActive.Height() > nNoProofOfWorkAfterBlock) {
+    else if (chainActive.Height() > nNoProofOfWorkAfterHeight) {
       LogPrintf("generating a block using the first solution\n");
       GenerateBitcoins(fGenerate, pwalletMain, 1);
       LogPrintf("done generating a block using the first solution\n");

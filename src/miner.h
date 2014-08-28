@@ -28,9 +28,10 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 /** Base sha256 mining transform */
 void SHA256Transform(void* pstate, void* pinput, const void* pinit);
+/** Return whether there is a trivial proof-of-work calculation after the given block */
+bool NoProofOfWorkAfterBlock(CBlockIndex* pindexPrev);
 
 extern double dHashesPerSec;
 extern int64_t nHPSTimerStart;
-extern int nNoProofOfWorkAfterBlock;
 
 #endif // BITCOIN_MINER_H
